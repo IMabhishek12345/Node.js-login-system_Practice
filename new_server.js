@@ -1,6 +1,6 @@
-// if (process.env.NODE_ENV!=="production"){
-//     require("dotenv").config()
-// }
+if (process.env.NODE_ENV!=="production"){
+    require("dotenv").config()
+}
 
 
 const express=require("express");
@@ -9,9 +9,11 @@ const passport=require("passport");
 const bcrypt=require("bcrypt");
 const localStrategy=require("passport-local").Strategy;
 const session=require("express-session");
+const flash=require("express-flash");
 const users=[];
 
 const initializePassport=(passport,getUserbyEmail,getUserbyId)=>{
+    
     const authenticateUser= async (email,password,done)=>{
         const user= await getUserbyEmail(email);
         if (user==null){
@@ -32,7 +34,7 @@ const initializePassport=(passport,getUserbyEmail,getUserbyId)=>{
         }
      passport.use(new localStrategy({usernameField:"email" },authenticateUser))           
      passport.serializeUser((user,done)=> done(null,user.id));
-     passport.deserializeUser((id,done)=>done(null,getUserbyId));
+     passport.deserializeUser((id,done)=>done(null,getUserbyId(id)));
     }
 
 initializePassport(passport,email=> users.find(user=>user.email===email),
@@ -41,17 +43,19 @@ initializePassport(passport,email=> users.find(user=>user.email===email),
 app.set("view-engine","ejs");
 
 app.use(express.urlencoded({extended:false}));
+
 app.use(session({
-    secret: "secret",
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false
 }))
 
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(flash());
 
 app.get("/",(req,res)=>{
-    res.render("index.ejs",{name:"Abhishek"})
+    res.render("index.ejs",{name:req.user.name})
 })
 app.get("/register",(req,res)=>{
     res.render("register.ejs")
