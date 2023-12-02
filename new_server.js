@@ -10,6 +10,7 @@ const bcrypt=require("bcrypt");
 const localStrategy=require("passport-local").Strategy;
 const session=require("express-session");
 const flash=require("express-flash");
+const methodOverride=require("method-override");
 const users=[];
 
 const initializePassport=(passport,getUserbyEmail,getUserbyId)=>{
@@ -53,24 +54,48 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 app.use(flash());
+app.use(methodOverride("_method"));
 
-app.get("/",(req,res)=>{
+const checkAuthenticated=(req,res,next)=>{
+    if (req.isAuthenticated()){
+        return next();
+    }
+    res.redirect("/login")
+}
+const checknotAuthenticated=(req,res,next)=>{
+    if (req.isAuthenticated()){
+        return res.redirect("/");
+    }
+    next();
+}
+//this delete is not supoorted by our form that's why 
+//we use method-override of node using that we can surpass
+// POST by DELETE
+
+app.delete("/logout",(req,res,next)=>{
+    req.logOut((err)=>{
+        if (err) return next(err)
+    res.redirect("/");    
+    })
+})
+
+app.get("/",checkAuthenticated,(req,res)=>{
     res.render("index.ejs",{name:req.user.name})
 })
-app.get("/register",(req,res)=>{
+app.get("/register",checknotAuthenticated,(req,res)=>{
     res.render("register.ejs")
 })
 
-app.get("/login",(req,res)=>{
+app.get("/login",checknotAuthenticated,(req,res)=>{
     res.render("login.ejs")
 })
-app.post("/login", passport.authenticate("local",{
+app.post("/login", checknotAuthenticated,passport.authenticate("local",{
     successRedirect: "/",
     failureRedirect: "/login",
     failureFlash:true
 }))
 
-app.post("/register",async(req,res)=>{
+app.post("/register",checknotAuthenticated,async(req,res)=>{
 
     try {
         const hashedPassword= await bcrypt.hash(req.body.password,10);
@@ -85,5 +110,6 @@ app.post("/register",async(req,res)=>{
         res.redirect("/register");
     }
 })
+
 
 app.listen(3000);
